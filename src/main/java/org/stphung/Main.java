@@ -1,0 +1,161 @@
+package org.stphung;
+
+import com.google.common.collect.ImmutableList;
+import org.stphung.cart.CartItem;
+import org.stphung.cart.VendibleCartItem;
+import org.stphung.price.RagialItemPriceProvider;
+import org.xml.sax.SAXException;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPathExpressionException;
+import java.io.*;
+import java.util.List;
+import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * this must be run as admin
+ *
+ * openkore configuration:
+ *   - timeouts.txt - shop_useSkill_delay
+ *   - config.txt - shopAuto_open 1
+ */
+public class Main {
+    private static final ExecutorService EXECUTOR_SERVICE = Executors.newCachedThreadPool();
+    private static final String CART_FILE_PATH = "C:/Users/stphung/test.txt";
+    private static final String OPENKORE_HOME = "C:/apps/openkore_ready";
+    private static final String ACCOUNT_NAME = "3xtz_l";
+    private static final int CHARACTER_INDEX = 0;
+
+    public static void main(String[] args) throws IOException, XPathExpressionException, ParserConfigurationException, SAXException, InterruptedException {
+        List<CartItem> cartItems = getCartItems(CART_FILE_PATH);
+
+        Scanner sc = new Scanner(System.in);
+
+        // 0. get the latest cart data
+        // TODO: automate getting the cart data somehow?
+        /**
+         * maybe we can login
+         * wait for awhile
+         * send to the outputstream "cart"
+         * exit
+         * parse the most recent cart output block
+         */
+
+        // 1. determine what to vend
+        VendingPlanner vendingPlanner = VendingPlanner.getInstance();
+        List<VendibleCartItem> vendibleCartItems = vendingPlanner.getVendibleCartItems(cartItems, RagialItemPriceProvider.getInstance());
+
+        // 2. confirm the vending proposal
+        System.out.println("Vending Proposal");
+        System.out.println("----------------------------------------------------------------------------------------");
+        for (VendibleCartItem vendibleCartItem : vendibleCartItems) {
+            System.out.println(vendibleCartItem);
+        }
+        System.out.println("----------------------------------------------------------------------------------------");
+        System.out.print("Type y if this is ok: ");
+        String response = sc.nextLine();
+        if (!response.equals("y")) {
+            System.exit(0);
+        }
+
+        // 3. write the vending proposal
+        String shopConfigPath = OPENKORE_HOME + "/control/shop.txt";
+        System.out.println("Writing openkore shop config (" + shopConfigPath + ")");
+        try (PrintWriter pw = new PrintWriter(shopConfigPath)) {
+            pw.println("Randoms");
+            pw.println();
+            for (VendibleCartItem item : vendibleCartItems) {
+                pw.println(item.getName() + '\t' + item.getPrice() + '\t' + item.getCount());
+            }
+        }
+
+        System.out.println("Wrote openkore shop config (" + shopConfigPath + ")");
+
+        // 4. allow manual modification and tweaking
+        System.out.print("Press enter when ready to vend:");
+        sc.nextLine();
+
+        // 5. start openkore
+        Runnable runnable = getOpenkoreRunnable(OPENKORE_HOME);
+        Runnable monitorRunnable = getShopFileMonitorRunnable(OPENKORE_HOME, ACCOUNT_NAME, CHARACTER_INDEX);
+
+        EXECUTOR_SERVICE.submit(runnable);
+        EXECUTOR_SERVICE.submit(monitorRunnable);
+        EXECUTOR_SERVICE.awaitTermination(300, TimeUnit.DAYS);
+    }
+
+    private static Runnable getShopFileMonitorRunnable(String openkoreHome, String accountName, int characterIndex) {
+        Runnable fileRunnable = () -> {
+            String shopLogFilePath = openkoreHome + "/logs/shop_log_" + accountName + '_' + characterIndex + ".txt";
+            File file = new File(shopLogFilePath);
+            try {
+                FileMonitor fileMonitor = new FileMonitor(file);
+                fileMonitor.getLines().forEach(System.out::println);
+                while (true) {
+                    fileMonitor.getNewLines().forEach(System.out::println);
+                    Thread.sleep(5000);
+                }
+            } catch (FileNotFoundException e) {
+            } catch (InterruptedException e) {
+            }
+        };
+
+        return fileRunnable;
+    }
+
+    // TODO: this needs to be cleaned up
+    private static Runnable getOpenkoreRunnable(String openkoreHome) {
+        ProcessBuilder processBuilder = new ProcessBuilder(openkoreHome + "/start.exe");
+        processBuilder.directory(new File(openkoreHome));
+        return () -> {
+            try {
+                String[] envp = {};
+                String command = openkoreHome + "/start.exe";
+                System.out.println("command: " + command);
+                System.out.println("working dir: " + openkoreHome);
+                Process process = Runtime.getRuntime().exec(command, envp, new File(openkoreHome));
+                Thread.sleep(1000);
+                while (true) {
+                    Scanner sc = new Scanner(process.getErrorStream()); // TODO: this needs to be here to block.
+                    while (sc.hasNextLine()) {
+                        sc.nextLine();
+                    }
+                    Thread.sleep(5000);
+                }
+            } catch (Exception e) {
+            }
+        };
+    }
+
+    private static List<CartItem> getCartItems(String filePath) throws FileNotFoundException {
+        ImmutableList.Builder<CartItem> cartItemsBuilder = ImmutableList.builder();
+        try (Scanner sc = new Scanner(new File(filePath))) {
+            // skip header
+            sc.nextLine();
+            sc.nextLine();
+
+            // parse cart items
+            String line = sc.nextLine();
+            while (!line.isEmpty()) {
+                String[] tokens = line.split(" ");
+                int count = Integer.parseInt(tokens[tokens.length - 1]);
+                StringBuilder nameSb = new StringBuilder();
+                for (int i = 1; i < tokens.length - 2; i++) {
+                    nameSb.append(tokens[i]).append(' ');
+                }
+
+                String name = nameSb.toString().trim();
+                CartItem cartItem = new CartItem(name, count);
+                cartItemsBuilder.add(cartItem);
+
+                line = sc.nextLine();
+            }
+        }
+
+        ImmutableList<CartItem> cartItems = cartItemsBuilder.build();
+        return cartItems;
+    }
+}
