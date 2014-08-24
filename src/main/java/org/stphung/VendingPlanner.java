@@ -50,8 +50,6 @@ public final class VendingPlanner {
 
             // get item prices
             List<ItemPrice> itemPrices = itemPriceProvider.getItemPrice(item.getName());
-            System.out.println(item.getName());
-            System.out.println(itemPrices);
 
             // find closest match
             int minLevenshteinDistance = itemPrices.stream().mapToInt(i -> StringUtils.getLevenshteinDistance(item.getName(), i.getName())).min().getAsInt();
@@ -63,7 +61,7 @@ public final class VendingPlanner {
 
             List<ItemPrice> matches = itemPrices.stream().filter(i -> minLevenshteinDistance == StringUtils.getLevenshteinDistance(item.getName(), i.getName())).collect(Collectors.toList());
 
-            System.out.println("Found prices: " + matches.stream().map(i -> i.getPrice()).collect(Collectors.toList()));
+            System.out.println("Found relevant prices: " + matches.stream().map(i -> i.getPrice()).collect(Collectors.toList()));
 
             // filter out prices older than a certain date
             LocalDateTime now = LocalDateTime.now();

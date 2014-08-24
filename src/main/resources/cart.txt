@@ -1,0 +1,12 @@
+---------------------- Cart ----------------------
+#  Name
+2  Oridecon x 1
+3  HD Elunium 10 Box x 1
+4  HD Elunium 10 Box x 1
+5  HD Elunium 10 Box x 1
+6  HD Elunium 10 Box x 1
+7  Roguemaster's Bow x 1
+8  +4 Mage Hat x 1
+
+Capacity: 7/100  Weight: 104/8000
+--------------------------------------------------

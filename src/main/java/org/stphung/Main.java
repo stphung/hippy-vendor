@@ -9,6 +9,7 @@ import org.xml.sax.SAXException;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathExpressionException;
 import java.io.*;
+import java.net.URL;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
@@ -24,13 +25,14 @@ import java.util.concurrent.TimeUnit;
  */
 public class Main {
     private static final ExecutorService EXECUTOR_SERVICE = Executors.newCachedThreadPool();
-    private static final String CART_FILE_PATH = "C:/Users/stphung/test.txt";
     private static final String OPENKORE_HOME = "C:/apps/openkore_ready";
     private static final String ACCOUNT_NAME = "3xtz_l";
     private static final int CHARACTER_INDEX = 0;
 
     public static void main(String[] args) throws IOException, XPathExpressionException, ParserConfigurationException, SAXException, InterruptedException {
-        List<CartItem> cartItems = getCartItems(CART_FILE_PATH);
+        ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+        URL cartUrl = classloader.getResource("cart.txt");
+        List<CartItem> cartItems = getCartItems(cartUrl.getPath());
 
         Scanner sc = new Scanner(System.in);
 
@@ -92,10 +94,13 @@ public class Main {
             Process process = null;
             try {
                 process = processBuilder.start();
-                process.waitFor();
+                Scanner sc = new Scanner(process.getErrorStream());
+
+                // TODO: not sure why this for loop has to be here, but using waitFor does not work.
+                while (sc.hasNextLine()) {
+                    sc.nextLine();
+                }
             } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         };
