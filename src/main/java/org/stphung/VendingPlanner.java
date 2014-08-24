@@ -50,6 +50,8 @@ public final class VendingPlanner {
 
             // get item prices
             List<ItemPrice> itemPrices = itemPriceProvider.getItemPrice(item.getName());
+            System.out.println(item.getName());
+            System.out.println(itemPrices);
 
             // find closest match
             int minLevenshteinDistance = itemPrices.stream().mapToInt(i -> StringUtils.getLevenshteinDistance(item.getName(), i.getName())).min().getAsInt();

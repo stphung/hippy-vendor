@@ -79,53 +79,24 @@ public class Main {
         sc.nextLine();
 
         // 5. start openkore
-        Runnable runnable = getOpenkoreRunnable(OPENKORE_HOME);
-        Runnable monitorRunnable = getShopFileMonitorRunnable(OPENKORE_HOME, ACCOUNT_NAME, CHARACTER_INDEX);
+        Runnable openkoreRunnable = getOpenkoreRunnable(OPENKORE_HOME);
 
-        EXECUTOR_SERVICE.submit(runnable);
-        EXECUTOR_SERVICE.submit(monitorRunnable);
+        EXECUTOR_SERVICE.submit(openkoreRunnable);
         EXECUTOR_SERVICE.awaitTermination(300, TimeUnit.DAYS);
     }
 
-    private static Runnable getShopFileMonitorRunnable(String openkoreHome, String accountName, int characterIndex) {
-        Runnable fileRunnable = () -> {
-            String shopLogFilePath = openkoreHome + "/logs/shop_log_" + accountName + '_' + characterIndex + ".txt";
-            File file = new File(shopLogFilePath);
-            try {
-                FileMonitor fileMonitor = new FileMonitor(file);
-                fileMonitor.getLines().forEach(System.out::println);
-                while (true) {
-                    fileMonitor.getNewLines().forEach(System.out::println);
-                    Thread.sleep(5000);
-                }
-            } catch (FileNotFoundException e) {
-            } catch (InterruptedException e) {
-            }
-        };
-
-        return fileRunnable;
-    }
-
-    // TODO: this needs to be cleaned up
     private static Runnable getOpenkoreRunnable(String openkoreHome) {
-        ProcessBuilder processBuilder = new ProcessBuilder(openkoreHome + "/start.exe");
-        processBuilder.directory(new File(openkoreHome));
         return () -> {
+            ProcessBuilder processBuilder = new ProcessBuilder(openkoreHome + "/start.exe");
+            processBuilder.directory(new File(openkoreHome));
+            Process process = null;
             try {
-                String[] envp = {};
-                String command = openkoreHome + "/start.exe";
-                System.out.println("command: " + command);
-                System.out.println("working dir: " + openkoreHome);
-                Process process = Runtime.getRuntime().exec(command, envp, new File(openkoreHome));
-                Thread.sleep(1000);
-                while (true) {
-                    Scanner sc = new Scanner(process.getErrorStream()); // TODO: this needs to be here to block.
-                    while (sc.hasNextLine()) {
-                        sc.nextLine();
-                    }
-                    Thread.sleep(5000);
-                }
-            } catch (Exception e) {
+                process = processBuilder.start();
+                process.waitFor();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         };
     }

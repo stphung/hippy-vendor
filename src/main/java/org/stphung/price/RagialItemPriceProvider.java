@@ -29,9 +29,10 @@ public class RagialItemPriceProvider implements ItemPriceProvider {
         ImmutableList.Builder<ItemPrice> builder = ImmutableList.builder();
 
         Document doc = Jsoup.connect(RAGIAL_ENDPOINT + "/search/iRO-Renewal/" + encodedItemName).get();
-        Elements odd = doc.getElementsByClass("odd");
-        for (int i = 0; i < odd.size(); i++) {
-            Element element = odd.get(i);
+
+        Elements trElements = doc.getElementsByClass("ilist").select("tbody tr");
+        for (int i = 0; i < trElements.size(); i++) {
+            Element element = trElements.get(i);
             String name = element.getElementsByClass("name").select("a").first().html().split(">")[1].trim();
 
             Elements date = element.getElementsByClass("date");
