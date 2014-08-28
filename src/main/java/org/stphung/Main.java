@@ -8,21 +8,24 @@ import org.xml.sax.SAXException;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathExpressionException;
-import java.io.*;
-import java.net.URL;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.List;
 import java.util.Scanner;
 
 // TODO: relog using already approved shop.txt
 // TODO: multi-user vending
 // TODO: consider using ragial to look for vend data
+
 /**
  * this must be run as admin
- *
+ * <p/>
  * openkore configuration:
- *   - timeouts.txt - shop_useSkill_delay
- *   - config.txt - shopAuto_open 1
- *   - macros.txt and macro plugin
+ * - timeouts.txt - shop_useSkill_delay
+ * - config.txt - shopAuto_open 1
+ * - macros.txt and macro plugin
  */
 public class Main {
     private static final VendingPlanner VENDING_PLANNER = VendingPlanner.getInstance();

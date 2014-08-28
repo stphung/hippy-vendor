@@ -14,14 +14,14 @@ import java.util.Optional;
 
 // TODO: Use kimono
 public class RagialItemPriceProvider implements ItemPriceProvider {
-    private static final ItemPriceProvider INSTANCE = new RagialItemPriceProvider();
     public static final String RAGIAL_ENDPOINT = "http://ragial.com";
+    private static final ItemPriceProvider INSTANCE = new RagialItemPriceProvider();
+
+    private RagialItemPriceProvider() {
+    }
 
     public static ItemPriceProvider getInstance() {
         return INSTANCE;
-    }
-
-    private RagialItemPriceProvider() {
     }
 
     @Override

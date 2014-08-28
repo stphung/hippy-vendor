@@ -6,7 +6,6 @@ import org.stphung.cart.CartItem;
 import org.stphung.cart.VendibleCartItem;
 import org.stphung.price.ItemPrice;
 import org.stphung.price.ItemPriceProvider;
-import org.stphung.price.RagialItemPriceProvider;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -17,16 +16,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public final class VendingPlanner {
-    public static VendingPlanner INSTANCE = new VendingPlanner();
-
     private static final int MIN_LEVENSHTEIN_DISTANCE = 0;
     private static final int MAXIMUM_PRICE_AGE = 60;
+    public static VendingPlanner INSTANCE = new VendingPlanner();
+
+    private VendingPlanner() {
+    }
 
     public static VendingPlanner getInstance() {
         return INSTANCE;
-    }
-
-    private VendingPlanner() {
     }
 
     private static int dateDescending(ItemPrice p1, ItemPrice p2) {
