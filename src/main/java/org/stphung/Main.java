@@ -81,29 +81,34 @@ public class Main {
         sc.nextLine();
 
         // 5. start openkore
-        Runnable openkoreRunnable = getOpenkoreRunnable(OPENKORE_HOME);
+        Process process = getOpenkoreRunnable(OPENKORE_HOME);
 
-        EXECUTOR_SERVICE.submit(openkoreRunnable);
+        EXECUTOR_SERVICE.submit(() -> {
+            Scanner sc1 = new Scanner(process.getErrorStream());
+
+            // TODO: not sure why this for loop has to be here, but using waitFor does not work.
+            while (sc1.hasNextLine()) {
+                sc1.nextLine();
+            }
+        });
+
         EXECUTOR_SERVICE.awaitTermination(300, TimeUnit.DAYS);
+
+        // TODO: relog using already approved shop.txt
+        // TODO: multi-user vending
+        // TODO: consider using ragial to look for vend data
     }
 
-    private static Runnable getOpenkoreRunnable(String openkoreHome) {
-        return () -> {
-            ProcessBuilder processBuilder = new ProcessBuilder(openkoreHome + "/start.exe");
-            processBuilder.directory(new File(openkoreHome));
-            Process process = null;
-            try {
-                process = processBuilder.start();
-                Scanner sc = new Scanner(process.getErrorStream());
-
-                // TODO: not sure why this for loop has to be here, but using waitFor does not work.
-                while (sc.hasNextLine()) {
-                    sc.nextLine();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        };
+    private static Process getOpenkoreRunnable(String openkoreHome) throws IOException {
+        ProcessBuilder processBuilder = new ProcessBuilder(openkoreHome + "/start.exe");
+        processBuilder.directory(new File(openkoreHome));
+        Process process = null;
+        try {
+            process = processBuilder.start();
+            return process;
+        } catch (IOException e) {
+            throw e;
+        }
     }
 
     private static List<CartItem> getCartItems(String filePath) throws FileNotFoundException {
