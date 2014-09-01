@@ -41,9 +41,7 @@ public class Main {
         VendingBot bot = new VendingBot(vendor);
         vendor.addVendorListener(bot);
 
-        EXECUTOR_SERVICE.execute(() -> {
-            HippyJava.runBot(bot);
-        });
+        EXECUTOR_SERVICE.execute(() -> HippyJava.runBot(bot));
 
         Thread.sleep(10000);
 

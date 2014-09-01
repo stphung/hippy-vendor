@@ -7,9 +7,15 @@ import org.stphung.pricing.ItemDataProvider;
 
 import java.io.*;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class Vendor implements Closeable {
+    private static final Logger LOGGER = Logger.getLogger(Vendor.class.getCanonicalName());
+
     private final Openkore openkore;
     private final List<VendorListener> vendorListeners;
     private final Map<String, Offer> offers;
@@ -18,6 +24,11 @@ public class Vendor implements Closeable {
         this.openkore = new Openkore(openkoreHome);
         this.vendorListeners = new ArrayList<>();
         this.offers = new HashMap<>();
+    }
+
+    private static String readFile(String path, Charset encoding) throws IOException {
+        byte[] encoded = Files.readAllBytes(Paths.get(path));
+        return new String(encoded, encoding);
     }
 
     public void addVendorListener(VendorListener listener) {
@@ -69,6 +80,10 @@ public class Vendor implements Closeable {
 
     public void createOffer(Planner planner, List<CartItem> cartItems, ItemDataProvider itemDataProvider) throws IOException, URISyntaxException {
         Offer offer = planner.getOffer(cartItems, itemDataProvider);
+        putOffer(offer);
+    }
+
+    private void putOffer(Offer offer) {
         this.offers.put(offer.getId(), offer);
         for (VendorListener vendorListener : this.vendorListeners) {
             vendorListener.offerCreated(offer);
@@ -84,7 +99,7 @@ public class Vendor implements Closeable {
 
     private void setOffer(Offer offer) throws FileNotFoundException {
         String shopConfigPath = this.openkore.getShopConfigPath();
-        System.out.println("Writing openkore shop config (" + shopConfigPath + ")");
+        LOGGER.info("writing openkore shop config to " + shopConfigPath);
         try (PrintWriter pw = new PrintWriter(shopConfigPath)) {
             pw.println("Randoms");
             pw.println();
@@ -92,7 +107,33 @@ public class Vendor implements Closeable {
                 pw.println(item.getName() + '\t' + item.getPrice() + '\t' + item.getCount());
             }
         }
-        System.out.println("Wrote openkore shop config (" + shopConfigPath + ")");
+    }
+
+    public void modifyOfferItemLimit(String id, int index, int count) {
+        if (this.offers.get(id) != null) {
+            Offer offer = this.offers.get(id);
+            Offer newOffer = offer.modifyCount(index, count);
+            putOffer(newOffer);
+        }
+    }
+
+    public void modifyOfferItemPrice(String id, int index, int price) {
+        if (this.offers.get(id) != null) {
+            Offer offer = this.offers.get(id);
+            Offer newOffer = offer.modifyPrice(index, price);
+            putOffer(newOffer);
+        }
+    }
+
+    public Optional<Offer> getOffer(String id) {
+        if (this.offers.containsKey(id)) {
+            return Optional.of(this.offers.get(id));
+        }
+        return Optional.empty();
+    }
+
+    public String getShopConfig() throws IOException {
+        return readFile(this.openkore.getShopConfigPath(), Charset.defaultCharset());
     }
 
     public void start() throws OpenkoreException {

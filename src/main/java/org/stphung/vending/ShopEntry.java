@@ -32,10 +32,6 @@ public class ShopEntry {
 
     @Override
     public String toString() {
-        return "ShopEntry{" +
-                "name='" + name + '\'' +
-                ", count='" + count + '\'' +
-                ", price=" + price +
-                '}';
+        return this.count + " " + this.name + " @ " + FORMATTER.format(this.price);
     }
 }
