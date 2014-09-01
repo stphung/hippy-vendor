@@ -1,4 +1,4 @@
-package org.stphung;
+package org.stphung.openkore;
 
 import java.io.Closeable;
 import java.io.File;
@@ -6,33 +6,38 @@ import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 
 public class Openkore implements Closeable {
-    private static final ExecutorService EXECUTOR_SERVICE = Executors.newCachedThreadPool();
+    private static final Logger LOGGER = Logger.getLogger(Openkore.class.getCanonicalName());
+    private final ExecutorService executorService;
     private final String openkoreHome;
+    private Process process;
 
     public Openkore(String openkoreHome) {
         this.openkoreHome = openkoreHome;
+        this.executorService = Executors.newCachedThreadPool();
     }
 
-    private Process getOpenkoreProcess(String openkoreHome) throws IOException {
+    private Process getOpenkoreProcess(String openkoreHome) throws OpenkoreException {
         ProcessBuilder processBuilder = new ProcessBuilder(openkoreHome + "/start.exe");
         processBuilder.directory(new File(openkoreHome));
-        Process process = null;
+        Process process;
         try {
             process = processBuilder.start();
             return process;
         } catch (IOException e) {
-            throw e;
+            throw new OpenkoreException(e);
         }
     }
 
-    public void start() throws IOException {
+    public void start() throws OpenkoreException {
+        LOGGER.info("starting openkore process @ " + this.openkoreHome);
         Process openkoreProcess = getOpenkoreProcess(this.openkoreHome);
-        EXECUTOR_SERVICE.submit(() -> {
+        this.process = openkoreProcess;
+        this.executorService.submit(() -> {
             Scanner scanner = new Scanner(openkoreProcess.getErrorStream());
-
-            // TODO: not sure why this for loop has to be here, but using waitFor does not work.
+            // TODO: Not sure why this for loop has to be here, but using waitFor does not work.
             while (scanner.hasNextLine()) {
                 scanner.nextLine();
             }
@@ -50,7 +55,8 @@ public class Openkore implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
-
+    public void close() {
+        LOGGER.info("terminating openkore process @ " + this.openkoreHome);
+        this.process.destroy();
     }
 }

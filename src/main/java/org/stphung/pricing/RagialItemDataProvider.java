@@ -1,4 +1,4 @@
-package org.stphung.price;
+package org.stphung.pricing;
 
 import com.google.common.collect.ImmutableList;
 import org.jsoup.Jsoup;
@@ -7,27 +7,28 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
 // TODO: Use kimono
-public class RagialItemPriceProvider implements ItemPriceProvider {
+public class RagialItemDataProvider implements ItemDataProvider {
     public static final String RAGIAL_ENDPOINT = "http://ragial.com";
-    private static final ItemPriceProvider INSTANCE = new RagialItemPriceProvider();
+    private static final ItemDataProvider INSTANCE = new RagialItemDataProvider();
 
-    private RagialItemPriceProvider() {
+    private RagialItemDataProvider() {
     }
 
-    public static ItemPriceProvider getInstance() {
+    public static ItemDataProvider getInstance() {
         return INSTANCE;
     }
 
     @Override
-    public List<ItemPrice> getItemPrice(String itemName) throws IOException {
-        String encodedItemName = URLEncoder.encode(itemName, "utf-8");
-        ImmutableList.Builder<ItemPrice> builder = ImmutableList.builder();
+    public List<ItemData> getItemData(String itemName) throws IOException, URISyntaxException {
+        String encodedItemName = URLEncoder.encode(itemName.toLowerCase(), "utf-8"); // TODO: why do I need to lowercase this for ragial to find it?
+        ImmutableList.Builder<ItemData> builder = ImmutableList.builder();
 
         Document doc = Jsoup.connect(RAGIAL_ENDPOINT + "/search/iRO-Renewal/" + encodedItemName).get();
 
@@ -51,12 +52,12 @@ public class RagialItemPriceProvider implements ItemPriceProvider {
                 try {
                     count = Integer.parseInt(cnt.first().html());
                 } catch (NumberFormatException e) {
-                    // they are buying, the value is "B"
+                    // This means they are buying, the value is "B"
                 }
             }
 
             long price = Long.parseLong(element.getElementsByClass("price").select("a").first().html().replaceAll(",", "").replaceAll("z", "").trim());
-            builder.add(new ItemPrice(name, count, price, dateOpt));
+            builder.add(new ItemData(name, count, price, dateOpt));
         }
 
         return builder.build();

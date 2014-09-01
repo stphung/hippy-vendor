@@ -1,5 +1,8 @@
-package org.stphung.cart;
+package org.stphung.vending;
 
+/**
+ * Represents an item in a vendor's cart.
+ */
 public class CartItem {
     private final String name;
     private final int count;
@@ -10,18 +13,18 @@ public class CartItem {
     }
 
     public String getName() {
-        return name;
+        return this.name;
     }
 
     public int getCount() {
-        return count;
+        return this.count;
     }
 
     @Override
     public String toString() {
         return "CartItem{" +
-                "name='" + name + '\'' +
-                ", count='" + count + '\'' +
+                "name='" + this.name + '\'' +
+                ", count='" + this.count + '\'' +
                 '}';
     }
 }
