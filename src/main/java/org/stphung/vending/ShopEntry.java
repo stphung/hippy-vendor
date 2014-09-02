@@ -30,8 +30,12 @@ public class ShopEntry {
         return this.price;
     }
 
+    public String getFormattedPrice() {
+        return FORMATTER.format(this.price);
+    }
+
     @Override
     public String toString() {
-        return this.count + " " + this.name + " @ " + FORMATTER.format(this.price);
+        return this.count + " " + this.name + " @ " + this.getFormattedPrice();
     }
 }

@@ -4,6 +4,7 @@ import com.ep.hippyjava.bot.HippyBot;
 import com.ep.hippyjava.model.Room;
 import com.google.common.collect.ImmutableMap;
 import org.stphung.openkore.OpenkoreException;
+import org.stphung.openkore.OpenkoreListener;
 import org.stphung.vending.Offer;
 import org.stphung.vending.ShopEntry;
 import org.stphung.vending.Vendor;
@@ -11,6 +12,7 @@ import org.stphung.vending.VendorListener;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,15 +20,13 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
-public class VendingBot extends HippyBot implements VendorListener {
-    private static final Logger LOGGER = Logger.getLogger(VendingBot.class.getCanonicalName());
-
+public class VendingBot extends HippyBot implements VendorListener, OpenkoreListener {
     public static final String ROOM_JID = "161862_stphung@conf.hipchat.com";
     public static final String USERNAME_JID = "161862_1163083@chat.hipchat.com";
     public static final String GROUP_API_KEY = "5e29cba45b3c1df3b48743ae8e90fe";
     public static final String NICKNAME = "ro bot";
     public static final String PASSWORD = "112585";
-
+    private static final Logger LOGGER = Logger.getLogger(VendingBot.class.getCanonicalName());
     private final Vendor vendor;
     private final ImmutableMap<Predicate<String>, BiConsumer<String, String>> handlers;
     private Room room;
@@ -34,6 +34,7 @@ public class VendingBot extends HippyBot implements VendorListener {
     public VendingBot(Vendor vendor) {
         this.vendor = vendor;
         this.handlers = this.createHandlers();
+        this.vendor.getOpenkore().addListener(this);
     }
 
     @Override
@@ -53,8 +54,24 @@ public class VendingBot extends HippyBot implements VendorListener {
     private ImmutableMap<Predicate<String>, BiConsumer<String, String>> createHandlers() {
         ImmutableMap.Builder<Predicate<String>, BiConsumer<String, String>> builder = ImmutableMap.builder();
 
+        // init
+        builder.put(s -> s.equals("init"), (m, u) -> {
+            this.say("initializing vendor");
+            try {
+                this.vendor.init();
+            } catch (OpenkoreException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
         // start
-        builder.put(s -> s.equals("start"), (m, u) -> {
+        builder.put(s -> s.equals("vend"), (m, u) -> {
             this.say("starting vendor");
             try {
                 this.vendor.start();
@@ -76,7 +93,7 @@ public class VendingBot extends HippyBot implements VendorListener {
         });
 
         // modify-offer <offer-id> <index> <limit|price> <value>
-        builder.put(s -> s.startsWith("modify-offer"), (m,u) -> {
+        builder.put(s -> s.startsWith("modify-offer"), (m, u) -> {
             String[] tokens = m.split(" ");
             String offerId = tokens[1];
             int index = Integer.parseInt(tokens[2]);
@@ -96,7 +113,7 @@ public class VendingBot extends HippyBot implements VendorListener {
 
         // describe-offer
         builder.put(s -> s.startsWith("describe-offer"), (m, u) -> {
-           String[] tokens = m.split(" ");
+            String[] tokens = m.split(" ");
             String offerId = tokens[1];
 
             Optional<Offer> offerOptional = this.vendor.getOffer(offerId);
@@ -104,7 +121,7 @@ public class VendingBot extends HippyBot implements VendorListener {
                 Offer offer = offerOptional.get();
                 this.say("describing offer " + offer.getId());
                 List<ShopEntry> shopEntries = offer.getShopEntries();
-                for (int i=0; i<shopEntries.size(); i++) {
+                for (int i = 0; i < shopEntries.size(); i++) {
                     this.say(i + " - " + shopEntries.get(i));
                 }
             }
@@ -119,15 +136,17 @@ public class VendingBot extends HippyBot implements VendorListener {
             }
         });
 
-        // list-offers
+        // TODO: list-offers
 
+        // TODO: get state
 
         return builder.build();
     }
 
+    // TODO: I want to know when things sell, send a message to hipchat
+
     @Override
     public void receiveMessage(String message, String user, Room room) {
-        System.out.println("received message");
         for (Map.Entry<Predicate<String>, BiConsumer<String, String>> entry : this.handlers.entrySet()) {
             if (entry.getKey().test(message)) {
                 try {
@@ -135,6 +154,7 @@ public class VendingBot extends HippyBot implements VendorListener {
                 } catch (Exception e) {
                     String msg = "error processing handler: " + e.getMessage();
                     LOGGER.warning(msg);
+                    e.printStackTrace();
                     this.say(msg);
                 }
                 break;
@@ -169,5 +189,15 @@ public class VendingBot extends HippyBot implements VendorListener {
         for (ShopEntry shopEntry : offer.getShopEntries()) {
             this.say(shopEntry.toString());
         }
+    }
+
+    @Override
+    public void starting() {
+        this.say("openkore starting");
+    }
+
+    @Override
+    public void closing() {
+        this.say("openkore closing");
     }
 }

@@ -3,6 +3,8 @@ package org.stphung.openkore;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -10,13 +12,20 @@ import java.util.logging.Logger;
 
 public class Openkore implements Closeable {
     private static final Logger LOGGER = Logger.getLogger(Openkore.class.getCanonicalName());
+
     private final ExecutorService executorService;
     private final String openkoreHome;
+    private final List<OpenkoreListener> listeners;
     private Process process;
 
     public Openkore(String openkoreHome) {
         this.openkoreHome = openkoreHome;
         this.executorService = Executors.newCachedThreadPool();
+        this.listeners = new ArrayList<>();
+    }
+
+    public void addListener(OpenkoreListener listener) {
+        this.listeners.add(listener);
     }
 
     private Process getOpenkoreProcess(String openkoreHome) throws OpenkoreException {
@@ -32,6 +41,14 @@ public class Openkore implements Closeable {
     }
 
     public void start() throws OpenkoreException {
+        if (this.process != null && this.process.isAlive()) {
+            this.close();
+        }
+
+        for (OpenkoreListener listener : this.listeners) {
+            listener.starting();
+        }
+
         LOGGER.info("starting openkore process @ " + this.openkoreHome);
         Process openkoreProcess = getOpenkoreProcess(this.openkoreHome);
         this.process = openkoreProcess;
@@ -56,6 +73,10 @@ public class Openkore implements Closeable {
 
     @Override
     public void close() {
+        for (OpenkoreListener listener : this.listeners) {
+            listener.closing();
+        }
+
         LOGGER.info("terminating openkore process @ " + this.openkoreHome);
         this.process.destroy();
     }

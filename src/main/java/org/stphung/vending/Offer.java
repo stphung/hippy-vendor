@@ -24,7 +24,7 @@ public class Offer {
 
     public Offer modifyCount(int index, int count) {
         ImmutableList.Builder<ShopEntry> builder = ImmutableList.builder();
-        for(int i=0; i<this.shopEntries.size(); i++) {
+        for (int i = 0; i < this.shopEntries.size(); i++) {
             if (index != i) {
                 builder.add(this.shopEntries.get(i));
             } else {
@@ -38,7 +38,7 @@ public class Offer {
 
     public Offer modifyPrice(int index, int price) {
         ImmutableList.Builder<ShopEntry> builder = ImmutableList.builder();
-        for(int i=0; i<this.shopEntries.size(); i++) {
+        for (int i = 0; i < this.shopEntries.size(); i++) {
             if (index != i) {
                 builder.add(this.shopEntries.get(i));
             } else {

@@ -48,6 +48,8 @@ public final class Planner {
             // get item prices
             List<ItemData> itemDatas = itemDataProvider.getItemData(item.getName());
 
+            // TODO: figure out what items are hot and which aren't, vend the items that are not hot
+
             // find closest match
             int minLevenshteinDistance = itemDatas.stream().mapToInt(i -> StringUtils.getLevenshteinDistance(item.getName(), i.getName())).min().getAsInt();
 

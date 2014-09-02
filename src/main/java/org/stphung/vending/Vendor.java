@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import org.stphung.openkore.Openkore;
 import org.stphung.openkore.OpenkoreException;
 import org.stphung.pricing.ItemDataProvider;
+import org.stphung.pricing.RagialItemDataProvider;
 
 import java.io.*;
 import java.net.URISyntaxException;
@@ -33,6 +34,15 @@ public class Vendor implements Closeable {
 
     public void addVendorListener(VendorListener listener) {
         this.vendorListeners.add(listener);
+    }
+
+    public Openkore getOpenkore() {
+        return this.openkore;
+    }
+
+    public void init() throws IOException, OpenkoreException, InterruptedException, URISyntaxException {
+        List<CartItem> latestCartItems = this.getCartItems();
+        this.createOffer(Planner.getInstance(), latestCartItems, RagialItemDataProvider.getInstance());
     }
 
     public List<CartItem> getCartItems() throws OpenkoreException, FileNotFoundException, InterruptedException {
@@ -104,7 +114,7 @@ public class Vendor implements Closeable {
             pw.println("Randoms");
             pw.println();
             for (ShopEntry item : offer.getShopEntries()) {
-                pw.println(item.getName() + '\t' + item.getPrice() + '\t' + item.getCount());
+                pw.println(item.getName() + '\t' + item.getFormattedPrice() + '\t' + item.getCount());
             }
         }
     }
