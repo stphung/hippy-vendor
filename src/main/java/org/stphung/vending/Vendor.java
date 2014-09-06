@@ -127,6 +127,8 @@ public class Vendor implements Closeable {
         }
     }
 
+    // TODO: rename shop
+
     public void modifyOfferItemPrice(String id, int index, int price) {
         if (this.offers.get(id) != null) {
             Offer offer = this.offers.get(id);
