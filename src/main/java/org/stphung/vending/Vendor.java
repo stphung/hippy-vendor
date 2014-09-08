@@ -111,7 +111,7 @@ public class Vendor implements Closeable {
         String shopConfigPath = this.openkore.getShopConfigPath();
         LOGGER.info("writing openkore shop config to " + shopConfigPath);
         try (PrintWriter pw = new PrintWriter(shopConfigPath)) {
-            pw.println("Randoms");
+            pw.println("Randoms"); // TODO: write a name generator
             pw.println();
             for (ShopEntry item : offer.getShopEntries()) {
                 pw.println(item.getName() + '\t' + item.getFormattedPrice() + '\t' + item.getCount());

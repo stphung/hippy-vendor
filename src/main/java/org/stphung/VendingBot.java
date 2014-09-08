@@ -10,6 +10,7 @@ import org.stphung.vending.ShopEntry;
 import org.stphung.vending.Vendor;
 import org.stphung.vending.VendorListener;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -20,7 +21,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
-public class VendingBot extends HippyBot implements VendorListener, OpenkoreListener {
+// TODO: implement a feature to estimate our networth
+public class VendingBot extends HippyBot implements VendorListener, OpenkoreListener, FileWatcherListener {
     public static final String ROOM_JID = "161862_stphung@conf.hipchat.com";
     public static final String USERNAME_JID = "161862_1163083@chat.hipchat.com";
     public static final String GROUP_API_KEY = "5e29cba45b3c1df3b48743ae8e90fe";
@@ -28,6 +30,7 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
     public static final String PASSWORD = "112585";
     private static final Logger LOGGER = Logger.getLogger(VendingBot.class.getCanonicalName());
     private final Vendor vendor;
+    private FileWatcher fileWatcher;
     private final ImmutableMap<Predicate<String>, BiConsumer<String, String>> handlers;
     private Room room;
 
@@ -35,6 +38,12 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
         this.vendor = vendor;
         this.handlers = this.createHandlers();
         this.vendor.getOpenkore().addListener(this);
+        try {
+            this.fileWatcher = new FileWatcher(new File("C:\\apps\\openkore_ready\\logs\\shop_log_Chaos_3xtz_l_0.txt")); // TODO: discover this path
+            this.fileWatcher.addListener(this);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -119,11 +128,12 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
             Optional<Offer> offerOptional = this.vendor.getOffer(offerId);
             if (offerOptional.isPresent()) {
                 Offer offer = offerOptional.get();
-                this.say("describing offer " + offer.getId());
+                StringBuilder sb = new StringBuilder("describing offer ").append(offer.getId()).append('\n');
                 List<ShopEntry> shopEntries = offer.getShopEntries();
                 for (int i = 0; i < shopEntries.size(); i++) {
-                    this.say(i + " - " + shopEntries.get(i));
+                    sb.append(i).append(" - ").append(shopEntries.get(i)).append('\n');
                 }
+                this.say(sb.toString());
             }
         });
 
@@ -142,8 +152,6 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
 
         return builder.build();
     }
-
-    // TODO: I want to know when things sell, send a message to hipchat
 
     @Override
     public void receiveMessage(String message, String user, Room room) {
@@ -186,9 +194,7 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
     @Override
     public void offerCreated(Offer offer) {
         this.say("offer " + offer.getId() + " created");
-        for (ShopEntry shopEntry : offer.getShopEntries()) {
-            this.say(shopEntry.toString());
-        }
+        this.say("describe-offer " + offer.getId());
     }
 
     @Override
@@ -199,5 +205,11 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
     @Override
     public void closing() {
         this.say("openkore closing");
+    }
+
+    @Override
+    public void fileChanged(List<String> newLines) {
+        // TODO: use notifications
+        newLines.forEach(line -> this.say(line));
     }
 }

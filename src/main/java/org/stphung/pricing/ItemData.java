@@ -40,27 +40,27 @@ public class ItemData {
     }
 
     public AverageTable getShortAverageTable() {
-        return shortAverageTable;
+        return this.shortAverageTable;
     }
 
     public AverageTable getLongAverageTable() {
-        return longAverageTable;
+        return this.longAverageTable;
     }
 
     public List<VendHistoryRecord> getVendHistoryRecords() {
-        return vendHistoryRecords;
+        return this.vendHistoryRecords;
     }
 
     @Override
     public String toString() {
         return "ItemData{" +
-                "name='" + name + '\'' +
-                ", count=" + count +
-                ", price=" + price +
-                ", dateOptional=" + dateOptional +
-                ", shortAverageTable=" + shortAverageTable +
-                ", longAverageTable=" + longAverageTable +
-                ", vendHistoryRecords=" + vendHistoryRecords +
+                "name='" + this.name + '\'' +
+                ", count=" + this.count +
+                ", price=" + this.price +
+                ", dateOptional=" + this.dateOptional +
+                ", shortAverageTable=" + this.shortAverageTable +
+                ", longAverageTable=" + this.longAverageTable +
+                ", vendHistoryRecords=" + this.vendHistoryRecords +
                 '}';
     }
 }

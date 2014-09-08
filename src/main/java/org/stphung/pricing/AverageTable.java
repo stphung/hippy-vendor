@@ -18,38 +18,38 @@ public class AverageTable {
     }
 
     public int getCount() {
-        return count;
+        return this.count;
     }
 
     public int getMin() {
-        return min;
+        return this.min;
     }
 
     public int getMax() {
-        return max;
+        return this.max;
     }
 
     public int getAverage() {
-        return average;
+        return this.average;
     }
 
     public int getStandardDeviation() {
-        return standardDeviation;
+        return this.standardDeviation;
     }
 
     public double getConfidence() {
-        return confidence;
+        return this.confidence;
     }
 
     @Override
     public String toString() {
         return "AverageTable{" +
-                "count=" + count +
-                ", min=" + min +
-                ", max=" + max +
-                ", average=" + average +
-                ", standardDeviation=" + standardDeviation +
-                ", confidence=" + confidence +
+                "count=" + this.count +
+                ", min=" + this.min +
+                ", max=" + this.max +
+                ", average=" + this.average +
+                ", standardDeviation=" + this.standardDeviation +
+                ", confidence=" + this.confidence +
                 '}';
     }
 }

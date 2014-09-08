@@ -1,21 +1,24 @@
 package org.stphung.vending;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import org.apache.commons.lang3.StringUtils;
 import org.stphung.pricing.ItemData;
 import org.stphung.pricing.ItemDataProvider;
+import org.stphung.pricing.VendHistoryRecord;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public final class Planner {
+    private static final Logger LOGGER = Logger.getLogger(Planner.class.getCanonicalName());
     private static final int MIN_LEVENSHTEIN_DISTANCE = 0;
     private static final int MAXIMUM_PRICE_AGE = 60;
     public static Planner INSTANCE = new Planner();
@@ -41,69 +44,73 @@ public final class Planner {
 
     public Offer getOffer(Collection<CartItem> cartItems, ItemDataProvider itemDataProvider) throws IOException, URISyntaxException {
         ImmutableList.Builder<ShopEntry> builder = ImmutableList.builder();
+        Map<String, List<ItemData>> itemDataMap = Maps.newHashMap();
 
         for (CartItem item : cartItems) {
-            System.out.println("Retrieving item prices for " + item.getName());
+            LOGGER.info("Retrieving item prices for " + item.getName());
 
-            // get item prices
-            List<ItemData> itemDatas = itemDataProvider.getItemData(item.getName());
+            // get all item prices from ragial
+            List<ItemData> itemDataList = itemDataMap.get(item.getName());
+            if (itemDataList == null) {
+                LOGGER.info(item.getName() + " is not cached");
+                itemDataList = itemDataProvider.getItemData(item.getName());
+                itemDataMap.put(item.getName(), itemDataList);
+            } else {
+                LOGGER.info(item.getName() + " is cached");
+            }
 
-            // TODO: figure out what items are hot and which aren't, vend the items that are not hot
-
-            // find closest match
-            int minLevenshteinDistance = itemDatas.stream().mapToInt(i -> StringUtils.getLevenshteinDistance(item.getName(), i.getName())).min().getAsInt();
-
-            // skip anything where we can't find a decent match
+            // find closest match and skip if we did not find one close enough
+            int minLevenshteinDistance = itemDataList.stream().mapToInt(i -> StringUtils.getLevenshteinDistance(item.getName(), i.getName())).min().getAsInt();
             if (minLevenshteinDistance > MIN_LEVENSHTEIN_DISTANCE) {
                 continue;
             }
 
-            List<ItemData> matches = itemDatas.stream().filter(i -> minLevenshteinDistance == StringUtils.getLevenshteinDistance(item.getName(), i.getName())).collect(Collectors.toList());
-
-            System.out.println("Found relevant prices: " + matches.stream().map(i -> i.getPrice()).collect(Collectors.toList()));
-
-            // filter out prices older than a certain date
-            LocalDateTime now = LocalDateTime.now();
-            List<ItemData> sortedItemDatas = matches.stream()
-                    .sorted(Planner::dateDescending)
-                    .filter(i -> {
+            // get the item data
+            Optional<ItemData> itemDataOptional = itemDataList.stream()
+                    .filter(i -> minLevenshteinDistance == StringUtils.getLevenshteinDistance(item.getName(), i.getName())) // only use those which match closely enough
+                    .sorted(Planner::dateDescending) // sort according to time
+                    .filter(i -> { // filter out old data
                         if (i.getDateOptional().isPresent()) {
                             LocalDateTime itemLdt = LocalDateTime.ofInstant(i.getDateOptional().get().toInstant(), ZoneId.systemDefault());
-                            long days = Duration.between(itemLdt, now).toDays();
+                            long days = Duration.between(itemLdt, LocalDateTime.now()).toDays();
                             return days < MAXIMUM_PRICE_AGE;
                         } else {
                             return true;
                         }
                     })
-                    .collect(Collectors.toList());
+                    .findFirst();
 
-            // TODO: sell most expensive when count*price
+            if (itemDataOptional.isPresent()) {
+                ItemData itemData = itemDataOptional.get();
+                Optional<Date> dateOptional = itemData.getDateOptional();
 
-            // get the minimum price
-            List<ItemData> currentlyVendingItems = sortedItemDatas.stream().filter(i -> i.getCount() > 0).collect(Collectors.toList());
-            long targetPrice;
-            if (currentlyVendingItems.size() > 0) {
-                targetPrice = currentlyVendingItems.stream().mapToLong(ItemData::getPrice).min().getAsLong();
-            } else {
-                try {
-                    targetPrice = sortedItemDatas.stream().mapToLong(ItemData::getPrice).min().getAsLong();
-                } catch (Exception e) {
-                    System.out.println("failed to find a price");
-                    continue;
+                if (dateOptional.isPresent()) {
+                    // it is not vending
+                    int maxShortPrice = itemData.getShortAverageTable().getMax();
+                    ShopEntry shopEntry = new ShopEntry(item.getName(), item.getCount(), maxShortPrice);
+                    builder.add(shopEntry);
+                } else {
+                    // it is vending
+                    List<VendHistoryRecord> vendingVendHistoryRecords = itemData.getVendHistoryRecords().stream().filter(record -> !record.getDateOptional().isPresent()).collect(Collectors.toList());
+
+                    int min = vendingVendHistoryRecords.stream().mapToInt(VendHistoryRecord::getPrice).min().getAsInt();
+                    int average = itemData.getShortAverageTable().getAverage();
+                    double discountPercentage = (1.0*(average-min))/average;
+                    LOGGER.info("discount on " + item.getName() + " is " + discountPercentage);
+
+                    // only sell the items that aren't heavily discounted and sell them at max price
+                    if (discountPercentage < 0.10) {
+                        int max = itemData.getShortAverageTable().getMax();
+                        ShopEntry shopEntry = new ShopEntry(item.getName(), item.getCount(), max);
+                        builder.add(shopEntry);
+                    }
                 }
             }
-
-            ShopEntry shopEntry = new ShopEntry(item.getName(), item.getCount(), targetPrice);
-            builder.add(shopEntry);
         }
 
         // sort descending, limit to 12 which is the maximum vend amount
         List<ShopEntry> priceSortedShopEntries = builder.build().stream().sorted((a, b) -> descending(a, b)).limit(12).collect(Collectors.toList());
         return new Offer(UUID.randomUUID().toString(), priceSortedShopEntries);
-    }
-
-    private int ascending(ShopEntry a, ShopEntry b) {
-        return Long.compare(a.getPrice(), b.getPrice());
     }
 
     private int descending(ShopEntry a, ShopEntry b) {
