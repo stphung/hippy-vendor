@@ -5,10 +5,7 @@ import com.ep.hippyjava.model.Room;
 import com.google.common.collect.ImmutableMap;
 import org.stphung.openkore.OpenkoreException;
 import org.stphung.openkore.OpenkoreListener;
-import org.stphung.vending.Offer;
-import org.stphung.vending.ShopEntry;
-import org.stphung.vending.Vendor;
-import org.stphung.vending.VendorListener;
+import org.stphung.vending.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -18,9 +15,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
+// TODO: multithreading - don't block the command loop, i should be able to init two at the same time
 // TODO: implement a feature to estimate our networth
 public class VendingBot extends HippyBot implements VendorListener, OpenkoreListener, FileWatcherListener {
     public static final String ROOM_JID = "161862_stphung@conf.hipchat.com";
@@ -29,20 +28,34 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
     public static final String NICKNAME = "ro bot";
     public static final String PASSWORD = "112585";
     private static final Logger LOGGER = Logger.getLogger(VendingBot.class.getCanonicalName());
-    private final Vendor vendor;
+    private final List<Vendor> vendors;
     private FileWatcher fileWatcher;
     private final ImmutableMap<Predicate<String>, BiConsumer<String, String>> handlers;
     private Room room;
 
-    public VendingBot(Vendor vendor) {
-        this.vendor = vendor;
+    public VendingBot(List<Vendor> vendors) {
+        this.vendors = vendors;
         this.handlers = this.createHandlers();
-        this.vendor.getOpenkore().addListener(this);
-        try {
-            this.fileWatcher = new FileWatcher(new File("C:\\apps\\openkore_ready\\logs\\shop_log_Chaos_3xtz_l_0.txt")); // TODO: discover this path
-            this.fileWatcher.addListener(this);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        this.vendors.forEach(v -> {
+            v.addVendorListener(this);
+            v.getOpenkore().addListener(this);
+        });
+
+
+        for (Vendor vendor : this.vendors) {
+            Optional<String> shopLogPathOptional = vendor.getOpenkore().getShopLogPath();
+            if (shopLogPathOptional.isPresent()) {
+                LOGGER.info("found shop log, adding a file watcher");
+                String shopLogPath = shopLogPathOptional.get();
+                try {
+                    this.fileWatcher = new FileWatcher(new File(shopLogPath));
+                    this.fileWatcher.addListener(this);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                LOGGER.warning("shop log not found");
+            }
         }
     }
 
@@ -60,95 +73,117 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
         this.sendMessage(message, this.room);
     }
 
+    private void botSay(String id, String message) {
+        this.say(id + ": " + message);
+    }
+
+    private void ifVendorPresent(String m, Consumer<Vendor> consumer) {
+        String[] tokens = m.split(" ");
+        String vendorId = tokens[0];
+        Optional<Vendor> vendorOptional = this.vendors.stream().filter(v -> v.getId().equals(vendorId)).findFirst();
+        if (vendorOptional.isPresent()) {
+            Vendor vendor = vendorOptional.get();
+            consumer.accept(vendor);
+        } else {
+            LOGGER.warning("vendor " + vendorId + " not found");
+        }
+    }
+
+    private boolean command(String m, String command) {
+        try {
+            return m.split(" ")[1].equals(command);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return false;
+        }
+    }
+
     private ImmutableMap<Predicate<String>, BiConsumer<String, String>> createHandlers() {
         ImmutableMap.Builder<Predicate<String>, BiConsumer<String, String>> builder = ImmutableMap.builder();
 
         // init
-        builder.put(s -> s.equals("init"), (m, u) -> {
-            this.say("initializing vendor");
-            try {
-                this.vendor.init();
-            } catch (OpenkoreException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (URISyntaxException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        builder.put(s -> command(s, "init"), (m, u) -> {
+            this.ifVendorPresent(m, vendor -> {
+                try {
+                    this.botSay(vendor.getId(), "initializing vendor");
+                    vendor.init();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (OpenkoreException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (URISyntaxException e) {
+                    e.printStackTrace();
+                }
+            });
         });
 
         // start
-        builder.put(s -> s.equals("vend"), (m, u) -> {
-            this.say("starting vendor");
-            try {
-                this.vendor.start();
-            } catch (OpenkoreException e) {
-                e.printStackTrace();
-            }
+        builder.put(s -> command(s, "start"), (m, u) -> {
+            this.ifVendorPresent(m, vendor -> {
+                try {
+                    this.botSay(vendor.getId(), "starting vendor");
+                    vendor.start();
+                } catch (OpenkoreException e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+
+        // stop
+        builder.put(s -> command(s, "stop"), (m, u) -> {
+            this.ifVendorPresent(m, vendor -> {
+                try {
+                    this.botSay(vendor.getId(), "stopping vendor");
+                    vendor.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
         });
 
         // accept-offer
-        builder.put(s -> s.startsWith("accept-offer"), (m, u) -> {
-            String[] tokens = m.split(" ");
-            String offerId = tokens[1];
-            try {
-                this.vendor.confirmOffer(offerId);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            this.say("accepting offer " + offerId);
-        });
-
-        // modify-offer <offer-id> <index> <limit|price> <value>
-        builder.put(s -> s.startsWith("modify-offer"), (m, u) -> {
-            String[] tokens = m.split(" ");
-            String offerId = tokens[1];
-            int index = Integer.parseInt(tokens[2]);
-            String mode = tokens[3];
-            int value = Integer.parseInt(tokens[4]);
-            System.out.println("offerId = " + offerId);
-            System.out.println("index = " + index);
-            System.out.println("mode = " + mode);
-            System.out.println("value = " + value);
-
-            if (mode.equals("limit")) {
-                vendor.modifyOfferItemLimit(offerId, index, value);
-            } else if (mode.equals("price")) {
-                vendor.modifyOfferItemPrice(offerId, index, value);
-            }
+        builder.put(s -> command(s, "accept-offer"), (m, u) -> {
+            this.ifVendorPresent(m, vendor -> {
+                String offerId = m.split(" ")[2];
+                try {
+                    this.botSay(vendor.getId(), "accepting offer " + offerId);
+                    vendor.confirmOffer(offerId);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            });
         });
 
         // describe-offer
-        builder.put(s -> s.startsWith("describe-offer"), (m, u) -> {
+        builder.put(s -> command(s, "describe-offer"), (m, u) -> {
             String[] tokens = m.split(" ");
-            String offerId = tokens[1];
+            String offerId = tokens[2];
 
-            Optional<Offer> offerOptional = this.vendor.getOffer(offerId);
-            if (offerOptional.isPresent()) {
-                Offer offer = offerOptional.get();
-                StringBuilder sb = new StringBuilder("describing offer ").append(offer.getId()).append('\n');
-                List<ShopEntry> shopEntries = offer.getShopEntries();
-                for (int i = 0; i < shopEntries.size(); i++) {
-                    sb.append(i).append(" - ").append(shopEntries.get(i)).append('\n');
+            this.ifVendorPresent(m, vendor -> {
+                Optional<Offer> offerOptional = vendor.getOffer(offerId);
+                if (offerOptional.isPresent()) {
+                    Offer offer = offerOptional.get();
+                    StringBuilder sb = new StringBuilder("describing offer ").append(offer.getId()).append('\n');
+                    List<ShopEntry> shopEntries = offer.getShopEntries();
+                    for (int i = 0; i < shopEntries.size(); i++) {
+                        sb.append(i).append(" - ").append(shopEntries.get(i)).append('\n');
+                    }
+                    this.botSay(vendor.getId(), sb.toString());
                 }
-                this.say(sb.toString());
-            }
+            });
         });
 
         // print-offer
-        builder.put(s -> s.equals("print-shop"), (m, u) -> {
-            try {
-                this.say(this.vendor.getShopConfig());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        builder.put(s -> command(s, "print-shop"), (m, u) -> {
+            this.ifVendorPresent(m, vendor -> {
+                try {
+                    this.say(vendor.getShopConfig());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
         });
-
-        // TODO: list-offers
-
-        // TODO: get state
 
         return builder.build();
     }
@@ -192,9 +227,9 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
     }
 
     @Override
-    public void offerCreated(Offer offer) {
-        this.say("offer " + offer.getId() + " created");
-        this.say("describe-offer " + offer.getId());
+    public void offerCreated(String id, Offer offer) {
+        this.botSay(id, offer.getId() + " created");
+        //this.say("describe-offer " + offer.getId());
     }
 
     @Override
@@ -209,7 +244,7 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
 
     @Override
     public void fileChanged(List<String> newLines) {
-        // TODO: use notifications
+        // TODO: use hipchat notifications, associate with vendor id
         newLines.forEach(line -> this.say(line));
     }
 }

@@ -3,8 +3,10 @@ package org.stphung.openkore;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,12 +64,12 @@ public class Openkore implements Closeable {
     }
 
     public String getShopConfigPath() {
-        String shopConfigPath = openkoreHome + "/control/shop.txt";
+        String shopConfigPath = this.openkoreHome + "/control/shop.txt";
         return shopConfigPath;
     }
 
     public String getConsoleLogPath() {
-        String consoleLogPath = openkoreHome + "/logs/console.txt";
+        String consoleLogPath = this.openkoreHome + "/logs/console.txt";
         return consoleLogPath;
     }
 
@@ -79,5 +81,13 @@ public class Openkore implements Closeable {
 
         LOGGER.info("terminating openkore process @ " + this.openkoreHome);
         this.process.destroy();
+    }
+
+    public Optional<String> getShopLogPath() {
+        File dir = new File(this.openkoreHome + "/logs");
+        for (File file : dir.listFiles((fileDir, fileName) -> fileName.startsWith("shop"))) {
+            return Optional.of(file.getAbsolutePath());
+        }
+        return Optional.empty();
     }
 }

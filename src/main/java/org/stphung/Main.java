@@ -1,6 +1,7 @@
 package org.stphung;
 
 import com.ep.hippyjava.HippyJava;
+import com.google.common.collect.ImmutableList;
 import org.stphung.openkore.OpenkoreException;
 import org.stphung.vending.Vendor;
 import org.xml.sax.SAXException;
@@ -29,12 +30,10 @@ public class Main {
     private static final ExecutorService EXECUTOR_SERVICE = Executors.newCachedThreadPool();
 
     public static void main(String[] args) throws IOException, XPathExpressionException, ParserConfigurationException, SAXException, InterruptedException, URISyntaxException, OpenkoreException {
-        String openkoreHome = "C:/apps/openkore_ready";
-
-        // create vendor and add listeners to it
-        Vendor vendor = new Vendor(openkoreHome);
-        VendingBot bot = new VendingBot(vendor);
-        vendor.addVendorListener(bot);
+        VendingBot bot = new VendingBot(ImmutableList.of(
+                new Vendor("C:/apps/openkore_ready", "Randoms", "bot1"),
+                new Vendor("C:/apps/openkore_ready_2", "Corner Shop", "bot2")
+        ));
 
         EXECUTOR_SERVICE.execute(() -> HippyJava.runBot(bot));
     }

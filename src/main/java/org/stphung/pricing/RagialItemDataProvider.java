@@ -13,7 +13,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
-// TODO: Use kimono
 public class RagialItemDataProvider implements ItemDataProvider {
     public static final String RAGIAL_ENDPOINT = "http://ragial.com";
     private static final ItemDataProvider INSTANCE = new RagialItemDataProvider();
@@ -24,8 +23,6 @@ public class RagialItemDataProvider implements ItemDataProvider {
     public static ItemDataProvider getInstance() {
         return INSTANCE;
     }
-
-    // TODO: dig deeper to find how much of a discount, I want to sell things that are not discounted.
 
     private AverageTable getAverageTable(String url, int tableIndex) throws IOException {
         Document document = Jsoup.connect(url).get();

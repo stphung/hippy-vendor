@@ -17,11 +17,15 @@ import java.util.logging.Logger;
 public class Vendor implements Closeable {
     private static final Logger LOGGER = Logger.getLogger(Vendor.class.getCanonicalName());
 
+    private String id;
+    private final String shopName;
     private final Openkore openkore;
     private final List<VendorListener> vendorListeners;
     private final Map<String, Offer> offers;
 
-    public Vendor(String openkoreHome) {
+    public Vendor(String openkoreHome, String shopName, String id) {
+        this.id = id;
+        this.shopName = shopName;
         this.openkore = new Openkore(openkoreHome);
         this.vendorListeners = new ArrayList<>();
         this.offers = new HashMap<>();
@@ -30,6 +34,10 @@ public class Vendor implements Closeable {
     private static String readFile(String path, Charset encoding) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(path));
         return new String(encoded, encoding);
+    }
+
+    public String getId() {
+        return this.id;
     }
 
     public void addVendorListener(VendorListener listener) {
@@ -96,7 +104,7 @@ public class Vendor implements Closeable {
     private void putOffer(Offer offer) {
         this.offers.put(offer.getId(), offer);
         for (VendorListener vendorListener : this.vendorListeners) {
-            vendorListener.offerCreated(offer);
+            vendorListener.offerCreated(this.id, offer);
         }
     }
 
@@ -111,29 +119,11 @@ public class Vendor implements Closeable {
         String shopConfigPath = this.openkore.getShopConfigPath();
         LOGGER.info("writing openkore shop config to " + shopConfigPath);
         try (PrintWriter pw = new PrintWriter(shopConfigPath)) {
-            pw.println("Randoms"); // TODO: write a name generator
+            pw.println(this.shopName);
             pw.println();
             for (ShopEntry item : offer.getShopEntries()) {
                 pw.println(item.getName() + '\t' + item.getFormattedPrice() + '\t' + item.getCount());
             }
-        }
-    }
-
-    public void modifyOfferItemLimit(String id, int index, int count) {
-        if (this.offers.get(id) != null) {
-            Offer offer = this.offers.get(id);
-            Offer newOffer = offer.modifyCount(index, count);
-            putOffer(newOffer);
-        }
-    }
-
-    // TODO: rename shop
-
-    public void modifyOfferItemPrice(String id, int index, int price) {
-        if (this.offers.get(id) != null) {
-            Offer offer = this.offers.get(id);
-            Offer newOffer = offer.modifyPrice(index, price);
-            putOffer(newOffer);
         }
     }
 
@@ -149,6 +139,7 @@ public class Vendor implements Closeable {
     }
 
     public void start() throws OpenkoreException {
+        LOGGER.info("start called");
         this.openkore.start();
     }
 
