@@ -5,7 +5,12 @@ import com.ep.hippyjava.model.Room;
 import com.google.common.collect.ImmutableMap;
 import org.stphung.openkore.OpenkoreException;
 import org.stphung.openkore.OpenkoreListener;
-import org.stphung.vending.*;
+import org.stphung.util.FileWatcher;
+import org.stphung.util.FileWatcherListener;
+import org.stphung.vending.Offer;
+import org.stphung.vending.ShopEntry;
+import org.stphung.vending.Vendor;
+import org.stphung.vending.VendorListener;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -22,15 +27,16 @@ import java.util.logging.Logger;
 // TODO: multithreading - don't block the command loop, i should be able to init two at the same time
 // TODO: implement a feature to estimate our networth
 public class VendingBot extends HippyBot implements VendorListener, OpenkoreListener, FileWatcherListener {
-    public static final String ROOM_JID = "161862_stphung@conf.hipchat.com";
-    public static final String USERNAME_JID = "161862_1163083@chat.hipchat.com";
-    public static final String GROUP_API_KEY = "5e29cba45b3c1df3b48743ae8e90fe";
-    public static final String NICKNAME = "ro bot";
-    public static final String PASSWORD = "112585";
+    private static final String ROOM_JID = "161862_stphung@conf.hipchat.com";
+    private static final String USERNAME_JID = "161862_1163083@chat.hipchat.com";
+    private static final String GROUP_API_KEY = "5e29cba45b3c1df3b48743ae8e90fe";
+    private static final String NICKNAME = "ro bot";
+    private static final String PASSWORD = "112585";
     private static final Logger LOGGER = Logger.getLogger(VendingBot.class.getCanonicalName());
+
     private final List<Vendor> vendors;
-    private FileWatcher fileWatcher;
     private final ImmutableMap<Predicate<String>, BiConsumer<String, String>> handlers;
+    private FileWatcher fileWatcher;
     private Room room;
 
     public VendingBot(List<Vendor> vendors) {
@@ -174,6 +180,41 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
             });
         });
 
+        // modify price
+        builder.put(s -> command(s, "modify-price"), (m, u) -> {
+            String[] tokens = m.split(" ");
+            String offerId = tokens[2];
+            int itemIndex = Integer.parseInt(tokens[3]);
+            int newPrice = Integer.parseInt(tokens[4]);
+
+            this.ifVendorPresent(m, vendor -> {
+                Optional<Offer> offerOptional = vendor.getOffer(offerId);
+                if (offerOptional.isPresent()) {
+                    Offer offer = offerOptional.get();
+                    this.botSay(vendor.getId(), "modifying price for offer " + offer.getId() + " at index " + itemIndex + " to price " + newPrice);
+                    vendor.modifyPrice(offer, itemIndex, newPrice);
+                }
+            });
+        });
+
+        // modify price
+        builder.put(s -> command(s, "modify-count"), (m, u) -> {
+            String[] tokens = m.split(" ");
+            String offerId = tokens[2];
+            int itemIndex = Integer.parseInt(tokens[3]);
+            int newCount = Integer.parseInt(tokens[4]);
+
+            this.ifVendorPresent(m, vendor -> {
+                Optional<Offer> offerOptional = vendor.getOffer(offerId);
+                if (offerOptional.isPresent()) {
+                    Offer offer = offerOptional.get();
+                    this.botSay(vendor.getId(), "modifying count for offer " + offer.getId() + " at index " + itemIndex + " to count " + newCount);
+                    vendor.modifyCount(offer, itemIndex, newCount);
+                }
+            });
+        });
+
+
         // print-offer
         builder.put(s -> command(s, "print-shop"), (m, u) -> {
             this.ifVendorPresent(m, vendor -> {
@@ -229,7 +270,7 @@ public class VendingBot extends HippyBot implements VendorListener, OpenkoreList
     @Override
     public void offerCreated(String id, Offer offer) {
         this.botSay(id, offer.getId() + " created");
-        //this.say("describe-offer " + offer.getId());
+        this.say(id + " describe-offer " + offer.getId());
     }
 
     @Override

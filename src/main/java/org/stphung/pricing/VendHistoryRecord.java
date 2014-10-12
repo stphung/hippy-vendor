@@ -1,6 +1,5 @@
 package org.stphung.pricing;
 
-import java.util.Date;
 import java.util.Optional;
 
 public class VendHistoryRecord {

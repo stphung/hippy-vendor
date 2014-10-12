@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableList;
 import org.stphung.openkore.Openkore;
 import org.stphung.openkore.OpenkoreException;
 import org.stphung.pricing.ItemDataProvider;
-import org.stphung.pricing.RagialItemDataProvider;
+import org.stphung.pricing.ragial.RagialItemDataProvider;
 
 import java.io.*;
 import java.net.URISyntaxException;
@@ -16,12 +16,11 @@ import java.util.logging.Logger;
 
 public class Vendor implements Closeable {
     private static final Logger LOGGER = Logger.getLogger(Vendor.class.getCanonicalName());
-
-    private String id;
     private final String shopName;
     private final Openkore openkore;
     private final List<VendorListener> vendorListeners;
     private final Map<String, Offer> offers;
+    private String id;
 
     public Vendor(String openkoreHome, String shopName, String id) {
         this.id = id;
@@ -114,6 +113,17 @@ public class Vendor implements Closeable {
             this.setOffer(offer);
         }
     }
+
+    public void modifyPrice(Offer offer, int itemIndex, int price) {
+        Offer newOffer = offer.modifyPrice(itemIndex, price);
+        this.putOffer(newOffer);
+    }
+
+    public void modifyCount(Offer offer, int itemIndex, int count) {
+        Offer newOffer = offer.modifyCount(itemIndex, count);
+        this.putOffer(newOffer);
+    }
+
 
     private void setOffer(Offer offer) throws FileNotFoundException {
         String shopConfigPath = this.openkore.getShopConfigPath();

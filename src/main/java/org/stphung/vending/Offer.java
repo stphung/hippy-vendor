@@ -38,13 +38,16 @@ public class Offer {
 
     public Offer modifyPrice(int index, int price) {
         ImmutableList.Builder<ShopEntry> builder = ImmutableList.builder();
+
+        ShopEntry targetShopEntry = this.shopEntries.get(index);
+
         for (int i = 0; i < this.shopEntries.size(); i++) {
-            if (index != i) {
-                builder.add(this.shopEntries.get(i));
-            } else {
-                ShopEntry shopEntry = this.shopEntries.get(i);
+            ShopEntry shopEntry = this.shopEntries.get(i);
+            if (targetShopEntry.getName().equals(shopEntry.getName())) {
                 ShopEntry newShopEntry = new ShopEntry(shopEntry.getName(), shopEntry.getCount(), price);
                 builder.add(newShopEntry);
+            } else {
+                builder.add(shopEntry);
             }
         }
         return new Offer(UUID.randomUUID().toString(), builder.build());
